@@ -1,0 +1,41 @@
+@import "tailwindcss";
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center rounded px-4 py-2 font-medium text-white transition duration-150 ease-in-out focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-primary {
+    @apply bg-slate-700 hover:bg-slate-800 active:bg-slate-900 focus:ring-slate-400;
+  }
+
+  .btn-danger {
+    @apply bg-red-600 hover:bg-red-700 active:bg-red-800 focus:ring-red-400;
+  }
+
+  .btn-danger-dark {
+    @apply bg-red-700 hover:bg-red-800 active:bg-red-900 focus:ring-red-500;
+  }
+
+  .btn-warn {
+    @apply bg-amber-600 hover:bg-amber-700 active:bg-amber-800 focus:ring-amber-400;
+  }
+}
+
+:root {
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 10% 10%, #f6f8fb 0%, #edf2f8 45%, #e6edf7 100%);
+  color: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+a {
+  color: inherit;
+}
