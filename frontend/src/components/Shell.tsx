@@ -15,6 +15,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {user ? (
               <>
                 <NavLink to="/profile">Profile</NavLink>
+                {user.is_staff ? <NavLink to="/admin/online-users">Online Users</NavLink> : null}
                 <button className="btn btn-primary px-3 py-1.5 text-sm" onClick={() => void logout()}>
                   Logout
                 </button>

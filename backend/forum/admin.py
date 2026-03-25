@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Comment, Discussion, DiscussionAnonIdentity, DiscussionView, User
+from .models import Comment, Discussion, DiscussionAnonIdentity, DiscussionView, OnlineUserConnection, User
 
 
 @admin.register(User)
@@ -62,3 +62,9 @@ class DiscussionAnonIdentityAdmin(admin.ModelAdmin):
 class DiscussionViewAdmin(admin.ModelAdmin):
     list_display = ("discussion", "device_id", "view_date", "created_at")
     search_fields = ("device_id",)
+
+
+@admin.register(OnlineUserConnection)
+class OnlineUserConnectionAdmin(admin.ModelAdmin):
+    list_display = ("user", "channel_name", "connected_at", "last_seen")
+    search_fields = ("user__email", "user__name", "channel_name")

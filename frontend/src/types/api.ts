@@ -8,6 +8,8 @@ export interface UserProfile {
   birth_date: string | null;
   date_joined: string;
   is_profile_anonymous: boolean;
+  is_staff: boolean | null;
+  is_superuser: boolean | null;
 }
 
 export interface AuthorDisplay {
@@ -44,4 +46,14 @@ export interface Paginated<T> {
   next: string | null;
   previous: string | null;
   results: T[];
+}
+
+export interface OnlineUser {
+  id: string;
+  name: string;
+  email: string;
+  is_staff: boolean;
+  is_superuser: boolean;
+  connections_count: number;
+  last_seen: string;
 }

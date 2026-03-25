@@ -12,6 +12,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Comment, Discussion, DiscussionView
+from .realtime import DISCUSSIONS_GROUP, broadcast_group_event, discussion_group_name, online_users_snapshot
 from .serializers import (
     AccountDeleteSerializer,
     CommentCreateSerializer,
@@ -20,6 +21,7 @@ from .serializers import (
     DiscussionSerializer,
     DiscussionUpdateSerializer,
     LoginSerializer,
+    OnlineUserSerializer,
     ProfilePrivacySerializer,
     RegisterSerializer,
     UserProfileSerializer,
@@ -144,7 +146,15 @@ class DiscussionListCreateView(generics.ListCreateAPIView):
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         discussion = serializer.save()
+        discussion.refresh_from_db()
         output = DiscussionSerializer(discussion, context=self.get_serializer_context()).data
+        broadcast_group_event(
+            DISCUSSIONS_GROUP,
+            {
+                "type": "discussion_created",
+                "discussion": output,
+            },
+        )
         return Response(output, status=status.HTTP_201_CREATED)
 
 
@@ -177,7 +187,11 @@ class DiscussionDetailView(APIView):
         serializer = DiscussionUpdateSerializer(instance=discussion, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(DiscussionSerializer(discussion, context={"request": request}).data)
+        output = DiscussionSerializer(discussion, context={"request": request}).data
+        event = {"type": "discussion_updated", "discussion": output}
+        broadcast_group_event(DISCUSSIONS_GROUP, event)
+        broadcast_group_event(discussion_group_name(str(discussion.pk)), event)
+        return Response(output)
 
     def delete(self, request, pk):
         if not request.user.is_authenticated:
@@ -187,7 +201,11 @@ class DiscussionDetailView(APIView):
         if discussion.created_by_id != request.user.id:
             raise PermissionDenied("Only the discussion owner can delete this discussion.")
 
+        discussion_id = str(discussion.pk)
         discussion.delete()
+        event = {"type": "discussion_deleted", "discussion_id": discussion_id}
+        broadcast_group_event(DISCUSSIONS_GROUP, event)
+        broadcast_group_event(discussion_group_name(discussion_id), event)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -202,9 +220,28 @@ class DiscussionCommentCreateView(APIView):
         serializer = CommentCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         comment = serializer.save(discussion=discussion, author=request.user)
+        discussion.refresh_from_db(fields=["updated_at", "comments_count"])
+
+        comment_output = CommentSerializer(comment, context={"request": request, "discussion": discussion}).data
+        discussion_output = DiscussionSerializer(discussion, context={"request": request}).data
+        broadcast_group_event(
+            DISCUSSIONS_GROUP,
+            {
+                "type": "discussion_updated",
+                "discussion": discussion_output,
+            },
+        )
+        broadcast_group_event(
+            discussion_group_name(str(discussion.pk)),
+            {
+                "type": "comment_created",
+                "comment": comment_output,
+                "discussion": discussion_output,
+            },
+        )
 
         return Response(
-            CommentSerializer(comment, context={"request": request, "discussion": discussion}).data,
+            comment_output,
             status=status.HTTP_201_CREATED,
         )
 
@@ -254,3 +291,12 @@ class DiscussionViewTrackView(APIView):
                 secure=False,
             )
         return response
+
+
+class AdminOnlineUsersView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        payload = online_users_snapshot()
+        serializer = OnlineUserSerializer(payload, many=True)
+        return Response(serializer.data)

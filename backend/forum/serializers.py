@@ -11,10 +11,22 @@ class UserProfileSerializer(serializers.ModelSerializer):
     email = serializers.SerializerMethodField()
     gender = serializers.SerializerMethodField()
     birth_date = serializers.SerializerMethodField()
+    is_staff = serializers.SerializerMethodField()
+    is_superuser = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ["id", "name", "email", "gender", "birth_date", "date_joined", "is_profile_anonymous"]
+        fields = [
+            "id",
+            "name",
+            "email",
+            "gender",
+            "birth_date",
+            "date_joined",
+            "is_profile_anonymous",
+            "is_staff",
+            "is_superuser",
+        ]
 
     def _can_view_private_fields(self, obj: User) -> bool:
         request = self.context.get("request")
@@ -28,6 +40,12 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
     def get_birth_date(self, obj):
         return obj.birth_date if self._can_view_private_fields(obj) or not obj.is_profile_anonymous else None
+
+    def get_is_staff(self, obj):
+        return obj.is_staff if self._can_view_private_fields(obj) else None
+
+    def get_is_superuser(self, obj):
+        return obj.is_superuser if self._can_view_private_fields(obj) else None
 
 
 class RegisterSerializer(serializers.ModelSerializer):
@@ -67,7 +85,7 @@ def _author_payload(comment: Comment, discussion: Discussion):
 
     if author is None:
         return {"display_name": "[deleted]", "user_id": None}
-    return {"display_name": author.name, "user_id": author.id}
+    return {"display_name": author.name, "user_id": str(author.id)}
 
 
 class CommentSerializer(serializers.ModelSerializer):
@@ -105,7 +123,7 @@ class DiscussionSerializer(serializers.ModelSerializer):
             return {"display_name": "Anonymous", "user_id": None}
         if obj.created_by is None:
             return {"display_name": "[deleted]", "user_id": None}
-        return {"display_name": obj.created_by.name, "user_id": obj.created_by.id}
+        return {"display_name": obj.created_by.name, "user_id": str(obj.created_by.id)}
 
 
 class DiscussionCreateSerializer(serializers.Serializer):
@@ -140,3 +158,13 @@ class CommentCreateSerializer(serializers.Serializer):
 
     def create(self, validated_data):
         return Comment.objects.create(**validated_data)
+
+
+class OnlineUserSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    name = serializers.CharField()
+    email = serializers.EmailField()
+    is_staff = serializers.BooleanField()
+    is_superuser = serializers.BooleanField()
+    connections_count = serializers.IntegerField(min_value=1)
+    last_seen = serializers.CharField()

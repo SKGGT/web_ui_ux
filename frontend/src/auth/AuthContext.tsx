@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { authApi, type LoginPayload, type RegisterPayload } from "../api/auth";
+import { connectRealtime } from "../api/realtime";
 import type { UserProfile } from "../types/api";
 
 interface AuthContextValue {
@@ -31,6 +32,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void refreshMe();
   }, [refreshMe]);
+
+  useEffect(() => {
+    if (!user) {
+      return;
+    }
+    const socket = connectRealtime("/ws/presence/");
+    const heartbeat = window.setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "ping" }));
+      }
+    }, 30000);
+
+    return () => {
+      window.clearInterval(heartbeat);
+      socket.close();
+    };
+  }, [user]);
 
   const value = useMemo<AuthContextValue>(
     () => ({

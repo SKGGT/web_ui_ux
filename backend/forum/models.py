@@ -149,6 +149,19 @@ class DiscussionView(models.Model):
         ]
 
 
+class OnlineUserConnection(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="online_connections")
+    channel_name = models.CharField(max_length=255, unique=True)
+    connected_at = models.DateTimeField(auto_now_add=True)
+    last_seen = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["last_seen"]),
+            models.Index(fields=["user", "last_seen"]),
+        ]
+
+
 def get_or_create_anonymous_identity(discussion: Discussion, user: User) -> DiscussionAnonIdentity:
     identity = DiscussionAnonIdentity.objects.filter(discussion=discussion, user=user).first()
     if identity:

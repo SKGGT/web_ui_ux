@@ -11,6 +11,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -18,6 +19,7 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "corsheaders",
+    "channels",
     "rest_framework",
     "drf_spectacular",
     "forum",
@@ -51,6 +53,7 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "myforum.wsgi.application"
+ASGI_APPLICATION = "myforum.asgi.application"
 
 DATABASES = {
     "default": {
@@ -104,4 +107,10 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "API schema for the forum backend.",
     "VERSION": "1.0.0",
     "SERVE_INCLUDE_SCHEMA": False,
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    },
 }

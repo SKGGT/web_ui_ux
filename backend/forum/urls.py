@@ -2,6 +2,7 @@ from django.urls import path
 
 from .views import (
     AccountDeleteView,
+    AdminOnlineUsersView,
     DiscussionCommentCreateView,
     DiscussionDetailView,
     DiscussionListCreateView,
@@ -24,4 +25,5 @@ urlpatterns = [
     path("discussions/<uuid:pk>", DiscussionDetailView.as_view()),
     path("discussions/<uuid:pk>/comments", DiscussionCommentCreateView.as_view()),
     path("discussions/<uuid:pk>/view", DiscussionViewTrackView.as_view()),
+    path("admin/online-users", AdminOnlineUsersView.as_view()),
 ]

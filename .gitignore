@@ -3,4 +3,5 @@ db.sqlite3
 node_moduels
 dist
 __pycache__
-.vscodE
+.vscode
+.ruff_cache

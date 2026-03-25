@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { discussionApi } from "../api/discussions";
-import type { DiscussionDetail } from "../types/api";
+import { connectRealtime } from "../api/realtime";
+import type { Comment, Discussion, DiscussionDetail } from "../types/api";
 import { CommentItem } from "../components/CommentItem";
 import { useAuth } from "../auth/AuthContext";
 
@@ -32,14 +33,76 @@ export function DiscussionDetailPage() {
     }
   }, [discussionId]);
 
+  useEffect(() => {
+    if (!discussionId) return;
+
+    const socket = connectRealtime(`/ws/discussions/${discussionId}/`);
+    const heartbeat = window.setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "ping" }));
+      }
+    }, 30000);
+
+    socket.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data) as
+          | { type: "comment_created"; comment: Comment; discussion: Discussion }
+          | { type: "discussion_updated"; discussion: Discussion }
+          | { type: "discussion_deleted"; discussion_id: string };
+
+        if (payload.type === "discussion_deleted") {
+          navigate("/discussions");
+          return;
+        }
+
+        if (payload.type === "discussion_updated") {
+          setDiscussion((prev) => (prev ? { ...prev, ...payload.discussion } : prev));
+          return;
+        }
+
+        if (payload.type === "comment_created") {
+          setDiscussion((prev) => {
+            if (!prev) return prev;
+            if (prev.comments.some((comment) => comment.id === payload.comment.id)) {
+              return { ...prev, ...payload.discussion };
+            }
+            return {
+              ...prev,
+              ...payload.discussion,
+              comments: [...prev.comments, payload.comment],
+            };
+          });
+        }
+      } catch {
+        // Ignore malformed messages
+      }
+    };
+
+    return () => {
+      window.clearInterval(heartbeat);
+      socket.close();
+    };
+  }, [discussionId, navigate]);
+
   const submitComment = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setIsPostingComment(true);
     try {
-      await discussionApi.addComment(discussionId, newComment);
+      const created = await discussionApi.addComment(discussionId, newComment);
       setNewComment("");
-      await load();
+      setDiscussion((prev) => {
+        if (!prev) return prev;
+        if (prev.comments.some((comment) => comment.id === created.id)) {
+          return prev;
+        }
+        return {
+          ...prev,
+          comments: [...prev.comments, created],
+          comments_count: prev.comments_count + 1,
+          last_activity: created.updated_at,
+        };
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to post comment");
     } finally {
@@ -50,8 +113,8 @@ export function DiscussionDetailPage() {
   const toggleClose = async () => {
     if (!discussion) return;
     try {
-      await discussionApi.setClosed(discussionId, !discussion.is_closed);
-      await load();
+      const updated = await discussionApi.setClosed(discussionId, !discussion.is_closed);
+      setDiscussion((prev) => (prev ? { ...prev, ...updated } : prev));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update discussion");
     }

@@ -6,6 +6,7 @@ import { DiscussionDetailPage } from "./pages/DiscussionDetailPage";
 import { DiscussionsPage } from "./pages/DiscussionsPage";
 import { InfoPage } from "./pages/InfoPage";
 import { LoginPage } from "./pages/LoginPage";
+import { OnlineUsersPage } from "./pages/OnlineUsersPage";
 import { ProfilePage } from "./pages/ProfilePage";
 import { PublicProfilePage } from "./pages/PublicProfilePage";
 import { RegisterPage } from "./pages/RegisterPage";
@@ -29,6 +30,7 @@ function App() {
         <Route path="/users/:id" element={<PublicProfilePage />} />
         <Route element={<ProtectedRoute />}>
           <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/admin/online-users" element={<OnlineUsersPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

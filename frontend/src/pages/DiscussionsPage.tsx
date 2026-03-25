@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { discussionApi } from "../api/discussions";
+import { connectRealtime } from "../api/realtime";
 import { DiscussionCard } from "../components/DiscussionCard";
 import type { Discussion } from "../types/api";
 import { useAuth } from "../auth/AuthContext";
@@ -26,6 +27,56 @@ export function DiscussionsPage() {
 
   useEffect(() => {
     void load();
+  }, []);
+
+  useEffect(() => {
+    const socket = connectRealtime("/ws/discussions/");
+    const heartbeat = window.setInterval(() => {
+      if (socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "ping" }));
+      }
+    }, 30000);
+
+    const sortItems = (values: Discussion[]) =>
+      [...values].sort((a, b) => {
+        if (a.views_count !== b.views_count) {
+          return b.views_count - a.views_count;
+        }
+        const activityDiff = new Date(b.last_activity).getTime() - new Date(a.last_activity).getTime();
+        if (activityDiff !== 0) {
+          return activityDiff;
+        }
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      });
+
+    socket.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data) as
+          | { type: "discussion_created"; discussion: Discussion }
+          | { type: "discussion_updated"; discussion: Discussion }
+          | { type: "discussion_deleted"; discussion_id: string };
+
+        if (payload.type === "discussion_created" || payload.type === "discussion_updated") {
+          setItems((prev) => {
+            const next = prev.filter((item) => item.id !== payload.discussion.id);
+            next.push(payload.discussion);
+            return sortItems(next);
+          });
+          return;
+        }
+
+        if (payload.type === "discussion_deleted") {
+          setItems((prev) => prev.filter((item) => item.id !== payload.discussion_id));
+        }
+      } catch {
+        // Ignore malformed messages
+      }
+    };
+
+    return () => {
+      window.clearInterval(heartbeat);
+      socket.close();
+    };
   }, []);
 
   const onCreate = async (e: React.FormEvent) => {
