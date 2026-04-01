@@ -16,12 +16,13 @@ from channels.routing import ProtocolTypeRouter, URLRouter
 from django.core.asgi import get_asgi_application
 
 from forum.routing import websocket_urlpatterns
+from forum.ws_auth import JwtQueryAuthMiddleware
 
 django_asgi_app = get_asgi_application()
 
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
-        "websocket": AuthMiddlewareStack(URLRouter(websocket_urlpatterns)),
+        "websocket": AuthMiddlewareStack(JwtQueryAuthMiddleware(URLRouter(websocket_urlpatterns))),
     }
 )

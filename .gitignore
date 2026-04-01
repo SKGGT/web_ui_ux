@@ -5,3 +5,5 @@ dist
 __pycache__
 .vscode
 .ruff_cache
+.env
+.expo

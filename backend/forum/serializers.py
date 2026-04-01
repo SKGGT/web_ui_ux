@@ -65,6 +65,10 @@ class LoginSerializer(serializers.Serializer):
     password = serializers.CharField(write_only=True)
 
 
+class TokenRefreshRequestSerializer(serializers.Serializer):
+    refresh = serializers.CharField()
+
+
 class ProfilePrivacySerializer(serializers.Serializer):
     is_profile_anonymous = serializers.BooleanField()
 

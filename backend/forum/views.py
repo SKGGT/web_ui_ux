@@ -10,6 +10,8 @@ from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
 
 from .models import Comment, Discussion, DiscussionView
 from .realtime import DISCUSSIONS_GROUP, broadcast_group_event, discussion_group_name, online_users_snapshot
@@ -21,6 +23,7 @@ from .serializers import (
     DiscussionSerializer,
     DiscussionUpdateSerializer,
     LoginSerializer,
+    TokenRefreshRequestSerializer,
     OnlineUserSerializer,
     ProfilePrivacySerializer,
     RegisterSerializer,
@@ -47,6 +50,25 @@ class RegisterView(APIView):
         return Response(UserProfileSerializer(user, context={"request": request}).data, status=status.HTTP_201_CREATED)
 
 
+def _token_payload_for_user(user, request):
+    refresh = RefreshToken.for_user(user)
+    return {
+        "user": UserProfileSerializer(user, context={"request": request}).data,
+        "access": str(refresh.access_token),
+        "refresh": str(refresh),
+    }
+
+
+class TokenRegisterView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = RegisterSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        user = serializer.save()
+        return Response(_token_payload_for_user(user, request), status=status.HTTP_201_CREATED)
+
+
 class LoginView(APIView):
     permission_classes = [permissions.AllowAny]
 
@@ -66,12 +88,45 @@ class LoginView(APIView):
         return Response(UserProfileSerializer(user, context={"request": request}).data)
 
 
+class TokenLoginView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = LoginSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = authenticate(
+            request,
+            email=serializer.validated_data["email"],
+            password=serializer.validated_data["password"],
+        )
+        if user is None:
+            raise ValidationError({"detail": "Invalid email or password."})
+
+        return Response(_token_payload_for_user(user, request))
+
+
 class LogoutView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         logout(request)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class TokenRefreshView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = TokenRefreshRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            refresh = RefreshToken(serializer.validated_data["refresh"])
+        except TokenError as exc:
+            raise ValidationError({"detail": "Invalid refresh token."}) from exc
+
+        return Response({"access": str(refresh.access_token)})
 
 
 class MeView(APIView):
@@ -251,18 +306,25 @@ class DiscussionViewTrackView(APIView):
 
     def post(self, request, pk):
         discussion = get_object_or_404(Discussion, pk=pk)
-
-        cookie_value = request.COOKIES.get("forum_device_id")
+        header_value = request.headers.get("X-Device-Id")
         should_set_cookie = False
-        try:
-            if cookie_value:
-                device_id = uuid.UUID(cookie_value)
-            else:
+
+        if header_value:
+            try:
+                device_id = uuid.UUID(header_value)
+            except ValueError as exc:
+                raise ValidationError({"detail": "Invalid X-Device-Id header."}) from exc
+        else:
+            cookie_value = request.COOKIES.get("forum_device_id")
+            try:
+                if cookie_value:
+                    device_id = uuid.UUID(cookie_value)
+                else:
+                    device_id = uuid.uuid4()
+                    should_set_cookie = True
+            except ValueError:
                 device_id = uuid.uuid4()
                 should_set_cookie = True
-        except ValueError:
-            device_id = uuid.uuid4()
-            should_set_cookie = True
 
         today = timezone.localdate()
         try:

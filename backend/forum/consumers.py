@@ -77,7 +77,12 @@ class DiscussionsConsumer(PresenceConsumerBase):
 
 
 class PresenceConsumer(PresenceConsumerBase):
-    pass
+    async def connect(self):
+        user = self.scope.get("user")
+        if not (user and user.is_authenticated):
+            await self.close(code=4401)
+            return
+        await super().connect()
 
 
 class DiscussionDetailConsumer(PresenceConsumerBase):
