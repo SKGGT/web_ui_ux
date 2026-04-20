@@ -53,7 +53,7 @@ class RegisterView(APIView):
 def _token_payload_for_user(user, request):
     refresh = RefreshToken.for_user(user)
     return {
-        "user": UserProfileSerializer(user, context={"request": request}).data,
+        "user": UserProfileSerializer(user, context={"request": request, "viewer": user}).data,
         "access": str(refresh.access_token),
         "refresh": str(refresh),
     }

@@ -29,6 +29,10 @@ class UserProfileSerializer(serializers.ModelSerializer):
         ]
 
     def _can_view_private_fields(self, obj: User) -> bool:
+        viewer = self.context.get("viewer")
+        if viewer is not None:
+            return bool(getattr(viewer, "is_authenticated", False) and viewer.pk == obj.pk)
+
         request = self.context.get("request")
         return bool(request and request.user.is_authenticated and request.user.pk == obj.pk)
 

@@ -1,9 +1,15 @@
 .venv
 db.sqlite3
 node_moduels
+node_modules
+frontend/node_modules
 dist
+coverage
+frontend/coverage
 __pycache__
 .vscode
 .ruff_cache
 .env
 .expo
+frontend/cypress/screenshots
+frontend/cypress/videos
