@@ -162,6 +162,33 @@ class OnlineUserConnection(models.Model):
         ]
 
 
+class AsyncOperation(models.Model):
+    class OperationType(models.TextChoices):
+        EMAIL_STAFF = "email_staff", "Email staff users"
+        EMAIL_NON_STAFF = "email_non_staff", "Email non-staff users"
+        FORUM_LONG_OP = "forum_long_op", "Forum long OP"
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        STARTED = "started", "Started"
+        SUCCESS = "success", "Success"
+        FAILURE = "failure", "Failure"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    operation_type = models.CharField(max_length=64, choices=OperationType.choices)
+    name = models.CharField(max_length=160)
+    data = models.JSONField(default=dict, blank=True)
+    result = models.TextField(blank=True)
+    status = models.CharField(max_length=32, choices=Status.choices, default=Status.PENDING)
+    task_id = models.CharField(max_length=255, blank=True)
+    requested_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name="async_operations")
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-completed_at", "-created_at"]
+
+
 def get_or_create_anonymous_identity(discussion: Discussion, user: User) -> DiscussionAnonIdentity:
     identity = DiscussionAnonIdentity.objects.filter(discussion=discussion, user=user).first()
     if identity:

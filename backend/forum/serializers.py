@@ -2,7 +2,7 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from rest_framework import serializers
 
-from .models import Comment, Discussion, get_or_create_anonymous_identity
+from .models import AsyncOperation, Comment, Discussion, get_or_create_anonymous_identity
 
 User = get_user_model()
 
@@ -176,3 +176,28 @@ class OnlineUserSerializer(serializers.Serializer):
     is_superuser = serializers.BooleanField()
     connections_count = serializers.IntegerField(min_value=1)
     last_seen = serializers.CharField()
+
+
+class AsyncOperationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AsyncOperation
+        fields = [
+            "id",
+            "name",
+            "operation_type",
+            "data",
+            "result",
+            "status",
+            "created_at",
+            "completed_at",
+        ]
+
+
+class GroupEmailOperationSerializer(serializers.Serializer):
+    group = serializers.ChoiceField(choices=["staff", "non_staff"])
+    subject = serializers.CharField(max_length=200)
+    message = serializers.CharField(max_length=5000)
+
+
+class ForumLongOPSerializer(serializers.Serializer):
+    seconds = serializers.IntegerField(min_value=1, max_value=120, default=10)

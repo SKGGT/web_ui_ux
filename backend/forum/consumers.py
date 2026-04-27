@@ -4,6 +4,7 @@ from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 
 from .realtime import (
+    ASYNC_OPERATIONS_ADMIN_GROUP,
     DISCUSSIONS_GROUP,
     ONLINE_USERS_ADMIN_GROUP,
     broadcast_group_event,
@@ -13,6 +14,8 @@ from .realtime import (
     online_users_snapshot,
     touch_user_connection,
 )
+from .models import AsyncOperation
+from .serializers import AsyncOperationSerializer
 
 
 class PresenceConsumerBase(AsyncJsonWebsocketConsumer):
@@ -145,6 +148,28 @@ class AdminOnlineUsersConsumer(AsyncJsonWebsocketConsumer):
         await self.send_json({"type": "online_users_snapshot", "users": event["users"]})
 
 
+class AdminAsyncOperationsConsumer(AsyncJsonWebsocketConsumer):
+    async def connect(self):
+        user = self.scope.get("user")
+        if not (user and user.is_authenticated and user.is_staff):
+            await self.close(code=4403)
+            return
+
+        await self.channel_layer.group_add(ASYNC_OPERATIONS_ADMIN_GROUP, self.channel_name)
+        await self.accept()
+        await self.send_json({"type": "async_operations_snapshot", "operations": await _async_operations_snapshot()})
+
+    async def disconnect(self, code):
+        await self.channel_layer.group_discard(ASYNC_OPERATIONS_ADMIN_GROUP, self.channel_name)
+
+    async def receive_json(self, content, **kwargs):
+        if content.get("type") == "snapshot":
+            await self.send_json({"type": "async_operations_snapshot", "operations": await _async_operations_snapshot()})
+
+    async def async_operation_completed(self, event):
+        await self.send_json({"type": "async_operation_completed", "operation": event["operation"]})
+
+
 @database_sync_to_async
 def _mark_user_online(user_id, channel_name: str):
     mark_user_online(user_id=user_id, channel_name=channel_name)
@@ -174,3 +199,9 @@ def _notify_admins_online_snapshot():
             "users": online_users_snapshot(),
         },
     )
+
+
+@database_sync_to_async
+def _async_operations_snapshot():
+    operations = AsyncOperation.objects.all()[:50]
+    return AsyncOperationSerializer(operations, many=True).data

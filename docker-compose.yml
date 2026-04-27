@@ -1,0 +1,57 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend
+    command: sh -c "python manage.py migrate && daphne -b 0.0.0.0 -p 8000 myforum.asgi:application"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CHANNEL_LAYER_BACKEND: channels_redis.core.RedisChannelLayer
+      CHANNEL_REDIS_URL: redis://redis:6379/0
+      EMAIL_BACKEND: django.core.mail.backends.dummy.EmailBackend
+      SQLITE_PATH: /app/data/db.sqlite3
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend-data:/app/data
+    depends_on:
+      - redis
+
+  celery:
+    build:
+      context: ./backend
+    command: celery -A myforum worker -l info
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      CHANNEL_LAYER_BACKEND: channels_redis.core.RedisChannelLayer
+      CHANNEL_REDIS_URL: redis://redis:6379/0
+      EMAIL_BACKEND: django.core.mail.backends.dummy.EmailBackend
+      SQLITE_PATH: /app/data/db.sqlite3
+    volumes:
+      - backend-data:/app/data
+    depends_on:
+      - redis
+      - backend
+
+  frontend:
+    build:
+      context: ./frontend
+    command: npm run dev -- --host 0.0.0.0
+    environment:
+      VITE_API_TARGET: http://backend:8000
+      VITE_WS_TARGET: ws://backend:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      - backend
+
+volumes:
+  backend-data:

@@ -2,6 +2,9 @@ from django.urls import path
 
 from .views import (
     AccountDeleteView,
+    AdminAsyncOperationListView,
+    AdminForumLongOPView,
+    AdminGroupEmailOperationView,
     AdminOnlineUsersView,
     DiscussionCommentCreateView,
     DiscussionDetailView,
@@ -32,4 +35,7 @@ urlpatterns = [
     path("discussions/<uuid:pk>/comments", DiscussionCommentCreateView.as_view()),
     path("discussions/<uuid:pk>/view", DiscussionViewTrackView.as_view()),
     path("admin/online-users", AdminOnlineUsersView.as_view()),
+    path("admin/async-operations", AdminAsyncOperationListView.as_view()),
+    path("admin/async-operations/email", AdminGroupEmailOperationView.as_view()),
+    path("admin/async-operations/forum-longop", AdminForumLongOPView.as_view()),
 ]

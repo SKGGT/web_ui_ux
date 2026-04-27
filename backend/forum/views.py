@@ -13,15 +13,18 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.exceptions import TokenError
 
-from .models import Comment, Discussion, DiscussionView
+from .models import AsyncOperation, Comment, Discussion, DiscussionView
 from .realtime import DISCUSSIONS_GROUP, broadcast_group_event, discussion_group_name, online_users_snapshot
 from .serializers import (
     AccountDeleteSerializer,
+    AsyncOperationSerializer,
     CommentCreateSerializer,
     CommentSerializer,
     DiscussionCreateSerializer,
     DiscussionSerializer,
     DiscussionUpdateSerializer,
+    ForumLongOPSerializer,
+    GroupEmailOperationSerializer,
     LoginSerializer,
     TokenRefreshRequestSerializer,
     OnlineUserSerializer,
@@ -29,6 +32,7 @@ from .serializers import (
     RegisterSerializer,
     UserProfileSerializer,
 )
+from .tasks import send_group_email_task, simulate_forum_long_op_task
 
 User = get_user_model()
 
@@ -362,3 +366,61 @@ class AdminOnlineUsersView(APIView):
         payload = online_users_snapshot()
         serializer = OnlineUserSerializer(payload, many=True)
         return Response(serializer.data)
+
+
+class AdminAsyncOperationListView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        queryset = AsyncOperation.objects.all()[:50]
+        return Response(AsyncOperationSerializer(queryset, many=True).data)
+
+
+class AdminGroupEmailOperationView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        serializer = GroupEmailOperationSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        group = serializer.validated_data["group"]
+        is_staff_group = group == "staff"
+        name = "Email staff users" if is_staff_group else "Email non-staff users"
+        operation = AsyncOperation.objects.create(
+            operation_type=AsyncOperation.OperationType.EMAIL_STAFF
+            if is_staff_group
+            else AsyncOperation.OperationType.EMAIL_NON_STAFF,
+            name=name,
+            data={
+                "group": group,
+                "subject": serializer.validated_data["subject"],
+            },
+            requested_by=request.user,
+        )
+        task = send_group_email_task.delay(
+            str(operation.pk),
+            is_staff_group,
+            serializer.validated_data["subject"],
+            serializer.validated_data["message"],
+        )
+        operation.task_id = task.id
+        operation.save(update_fields=["task_id"])
+        return Response(AsyncOperationSerializer(operation).data, status=status.HTTP_202_ACCEPTED)
+
+
+class AdminForumLongOPView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        serializer = ForumLongOPSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        seconds = serializer.validated_data["seconds"]
+        operation = AsyncOperation.objects.create(
+            operation_type=AsyncOperation.OperationType.FORUM_LONG_OP,
+            name="Long OP simulation",
+            data={"seconds": seconds},
+            requested_by=request.user,
+        )
+        task = simulate_forum_long_op_task.delay(str(operation.pk), seconds)
+        operation.task_id = task.id
+        operation.save(update_fields=["task_id"])
+        return Response(AsyncOperationSerializer(operation).data, status=status.HTTP_202_ACCEPTED)

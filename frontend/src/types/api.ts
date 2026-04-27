@@ -57,3 +57,16 @@ export interface OnlineUser {
   connections_count: number;
   last_seen: string;
 }
+
+export type AsyncOperationStatus = "pending" | "started" | "success" | "failure";
+
+export interface AsyncOperation {
+  id: string;
+  name: string;
+  operation_type: "email_staff" | "email_non_staff" | "forum_long_op";
+  data: Record<string, unknown>;
+  result: string;
+  status: AsyncOperationStatus;
+  created_at: string;
+  completed_at: string | null;
+}

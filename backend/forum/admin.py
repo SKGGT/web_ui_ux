@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 
-from .models import Comment, Discussion, DiscussionAnonIdentity, DiscussionView, OnlineUserConnection, User
+from .models import AsyncOperation, Comment, Discussion, DiscussionAnonIdentity, DiscussionView, OnlineUserConnection, User
 
 
 @admin.register(User)
@@ -68,3 +68,10 @@ class DiscussionViewAdmin(admin.ModelAdmin):
 class OnlineUserConnectionAdmin(admin.ModelAdmin):
     list_display = ("user", "channel_name", "connected_at", "last_seen")
     search_fields = ("user__email", "user__name", "channel_name")
+
+
+@admin.register(AsyncOperation)
+class AsyncOperationAdmin(admin.ModelAdmin):
+    list_display = ("name", "operation_type", "status", "requested_by", "created_at", "completed_at")
+    list_filter = ("operation_type", "status")
+    search_fields = ("name", "result", "requested_by__email")

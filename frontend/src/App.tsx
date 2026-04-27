@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./auth/AuthContext";
 import { Shell } from "./components/Shell";
 import { ProtectedRoute } from "./components/ProtectedRoute";
+import { AdminOperationsPage } from "./pages/AdminOperationsPage";
 import { DiscussionDetailPage } from "./pages/DiscussionDetailPage";
 import { DiscussionsPage } from "./pages/DiscussionsPage";
 import { InfoPage } from "./pages/InfoPage";
@@ -31,6 +32,7 @@ function App() {
         <Route element={<ProtectedRoute />}>
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/admin/online-users" element={<OnlineUsersPage />} />
+          <Route path="/admin/operations" element={<AdminOperationsPage />} />
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

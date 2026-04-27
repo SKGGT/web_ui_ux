@@ -13,6 +13,7 @@ from .models import OnlineUserConnection
 DISCUSSIONS_GROUP = "discussions"
 DISCUSSION_GROUP_PREFIX = "discussion_"
 ONLINE_USERS_ADMIN_GROUP = "online_users_admins"
+ASYNC_OPERATIONS_ADMIN_GROUP = "async_operations_admins"
 ONLINE_USER_TTL_SECONDS = 90
 
 
